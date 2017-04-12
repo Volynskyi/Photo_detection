@@ -6,10 +6,12 @@ import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import java.util.List;
+
 public class DBHelper extends SQLiteOpenHelper{
 
-    public static final int DATABASE_VERSION = 1;
-    public static final String DATABASE_NAME = "tagDb";
+    private static final int DATABASE_VERSION = 1;
+    private static final String DATABASE_NAME = "tagDb";
     public static final String TABLE_NAME = "Tags";
 
     // Labels Table Columns names
@@ -34,6 +36,11 @@ public class DBHelper extends SQLiteOpenHelper{
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("drop table if exists " + TABLE_NAME);
         onCreate(db);
+    }
+
+    public void insertTags(List<String> tags){
+
+
     }
 
 }

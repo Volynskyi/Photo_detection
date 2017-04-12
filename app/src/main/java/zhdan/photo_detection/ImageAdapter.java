@@ -1,18 +1,22 @@
 package zhdan.photo_detection;
 
 import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.Log;
+import android.util.SparseBooleanArray;
+import android.util.SparseIntArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AbsListView;
 import android.widget.BaseAdapter;
-import android.widget.GridView;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
-import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by vova on 17.03.2017.
@@ -21,30 +25,32 @@ import java.util.ArrayList;
 public class ImageAdapter extends BaseAdapter {
 
     private Context mContext;
+    private SparseIntArray checkedItems;
+    private DBHelper dbHelper;
 
     // Keep path in array
-    static ArrayList<String> photosPath;
+    private ArrayList<PhotoData> photoDataList;
 
-    public ImageAdapter(Context c) {
-        this.mContext = c;
-    }
 
     // Constructor
-    public ImageAdapter(Context c, ArrayList<String> photosPath) {
+    ImageAdapter(Context c, ArrayList<PhotoData> photoDataList) {
+        Log.d(MainActivity.TAG, "New object");
+        checkedItems = new SparseIntArray();
+        dbHelper = new DBHelper(c);
         mContext = c;
-        this.photosPath = photosPath;
+        this.photoDataList = photoDataList;
     }
 
     @Override
     public int getCount() {
         // TODO Auto-generated method stub
-        return photosPath.size(); // длина массива
+        return photoDataList.size(); // длина массива
     }
 
     @Override
-    public Object getItem(int position) {
+    public PhotoData getItem(int position) {
         // TODO Auto-generated method stub
-        return photosPath.get(position);
+        return photoDataList.get(position);
     }
 
     @Override
@@ -53,25 +59,31 @@ public class ImageAdapter extends BaseAdapter {
         return position;
     }
 
-    public static class ViewHolder
+    private static class ViewHolder
     {
-        public ImageView imgView;
-
+        ImageView imgView;
+        CheckBox checkBox;
+        int id;
+        boolean visible;
+        boolean selected;
     }
 
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    public View getView(final int position, View convertView, ViewGroup parent) {
         ViewHolder viewHolder;
-        
         LayoutInflater inflater = LayoutInflater.from(mContext);
-
-        if(convertView==null)
+        if(convertView == null)
         {
             viewHolder = new ViewHolder();
             convertView = inflater.inflate(R.layout.grid_item_layout, null);
-
-            viewHolder.imgView = (ImageView) convertView.findViewById(R.id.imageViewForGrid);
-
+            viewHolder.imgView = (ImageView) convertView.findViewById(R.id.itemImageView);
+            viewHolder.checkBox = (CheckBox) convertView.findViewById(R.id.itemCheckBox);
+            Log.d(MainActivity.TAG, "photoDataList.get(position).isVisible() = " + photoDataList.get(position).isVisible() + position);
+            if(photoDataList.get(position).isVisible()) {
+                viewHolder.checkBox.setVisibility(View.VISIBLE);
+            } else {
+                viewHolder.checkBox.setVisibility(View.GONE);
+            }
             convertView.setTag(viewHolder);
         }
         else
@@ -79,9 +91,58 @@ public class ImageAdapter extends BaseAdapter {
             viewHolder = (ViewHolder) convertView.getTag();
         }
 
-        Bitmap bitmap = BitmapFactory.decodeFile(photosPath.get(position));
+        final PhotoData photoData = getItem(position);
+        Bitmap bitmap = BitmapFactory.decodeFile(photoData.getPhotoPath());
         viewHolder.imgView.setImageBitmap(bitmap);
+        viewHolder.id = photoData.getId();
+        viewHolder.visible = photoData.isVisible();
+        viewHolder.selected = photoData.isSelected();
 
+        if (!viewHolder.visible)
+            viewHolder.checkBox.setVisibility(View.GONE);
+        else
+        {
+            viewHolder.checkBox.setVisibility(View.VISIBLE);
+            if(viewHolder.selected){
+                viewHolder.checkBox.setChecked(true);
+                Log.d(MainActivity.TAG, "OnLongClick in position = " + position);
+                checkedItems.put(photoData.getId(), position);
+            }
+
+            viewHolder.checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+
+                    if(buttonView.isChecked()){
+                        Log.d(MainActivity.TAG, "Checked in position = " + position);
+                        checkedItems.put(photoData.getId(), position);
+                    }
+                    else
+                    {
+                        Log.d(MainActivity.TAG, "Unchecked in position = " + position);
+                        checkedItems.delete(photoData.getId());
+                    }
+                }
+            });
+        }
         return convertView;
+    }
+
+
+    SparseIntArray getSelectedIds() {
+        return checkedItems;
+    }
+
+    void removeFromDB(int id) {
+
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+        int delCount = database.delete(DBHelper.TABLE_NAME, DBHelper.KEY_ID + "=" + id, null);
+        Log.d(MainActivity.TAG, "deleted row counts = " + delCount);
+        notifyDataSetChanged();
+    }
+
+    void removeSelection() {
+        checkedItems = new SparseIntArray();
+        notifyDataSetChanged();
     }
 }

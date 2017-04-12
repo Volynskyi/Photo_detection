@@ -20,6 +20,7 @@ import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.PopupMenu;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -79,11 +80,12 @@ public class MainActivity extends AppCompatActivity {
 
     //DB variables
     DBHelper dbHelper;
-    String currentPhotoPath;
 
+    String currentPhotoPath;
     Uri photoURI;
     List<TextView> tvList;
     boolean detectionUsed;
+    double ratioWidth;
 
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -187,7 +189,6 @@ public class MainActivity extends AppCompatActivity {
             public boolean onMenuItemClick(MenuItem item) {
                 switch (item.getItemId()) {
                     case R.id.gallery:
-                        Log.d(TAG, "gallery chosen");
                         Intent photoPickerIntent = new Intent(Intent.ACTION_PICK);
                         photoPickerIntent.setType("image/*");
                         startActivityForResult(photoPickerIntent, REQUEST_CODE_GALLERY);
@@ -235,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Bitmap faceDetection(Bitmap bitmap) {
-        if(detectionUsed == true){
+        if(detectionUsed){
             return null;
         }
         imageMat = new Mat(bitmap.getHeight(),
@@ -256,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
         double bitmapWidth = bitmap.getWidth();
         double bitmapHeight = bitmap.getHeight();
 
-        double ratioWidth = imageView.getMeasuredWidth() / bitmapWidth;
+        ratioWidth = imageView.getMeasuredWidth() / bitmapWidth;
         double ratioHeight = imageView.getMeasuredHeight() / bitmapHeight;
 
         int lpWidth;
@@ -269,8 +270,9 @@ public class MainActivity extends AppCompatActivity {
 
             final TextView tv = new TextView(this);
 
-            tv.setText("" + i);
+            tv.setText(String.valueOf(i));
             tv.setTextColor(ContextCompat.getColor(context, R.color.colorText));
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
             RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams
                     (lpWidth, RelativeLayout.LayoutParams.WRAP_CONTENT);
             lp.setMargins((int) (facesArray[i].tl().x * ratioWidth), (int) (facesArray[i].br().y * ratioHeight), 0, 0);
@@ -303,7 +305,6 @@ public class MainActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.item_save:
-                Log.d(TAG, "" + relativeLayout.getChildCount());
                 if(relativeLayout.getChildCount() == 0 || (imageView.getDrawable() == null)){
                     Toast.makeText(this, "Nothing to save", Toast.LENGTH_SHORT).show();
                     break;
@@ -315,32 +316,7 @@ public class MainActivity extends AppCompatActivity {
                     tags.add(textView.getText().toString());
                 }
 
-                SQLiteDatabase database = dbHelper.getWritableDatabase();
-
-                ContentValues contentValues = new ContentValues();
-                for (String tag : tags) {
-                    contentValues.put(DBHelper.KEY_NAME, tag);
-                    contentValues.put(DBHelper.KEY_PATH, currentPhotoPath);
-                    database.insert(DBHelper.TABLE_NAME, null, contentValues);
-                }
-
-                Cursor cursor;
-                cursor = database.query(DBHelper.TABLE_NAME, null, null, null, null, null, null);
-
-                if (cursor.moveToFirst()) {
-                    int idIndex = cursor.getColumnIndex(DBHelper.KEY_ID);
-                    int nameIndex = cursor.getColumnIndex(DBHelper.KEY_NAME);
-                    int emailIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
-                    do {
-                        Log.d("mLog", "ID = " + cursor.getInt(idIndex) +
-                                ", name = " + cursor.getString(nameIndex) +
-                                ", email = " + cursor.getString(emailIndex));
-                    } while (cursor.moveToNext());
-                } else {
-                    Log.d("mLog", "0 rows");
-                }
-                cursor.close();
-                database.close();
+                insertTagsIntoDB(tags);
                 break;
             case R.id.item_search:
                 Intent intent = new Intent(this, GridLayoutDemoActivity.class);
@@ -348,6 +324,35 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void insertTagsIntoDB(List<String> tags) {
+        SQLiteDatabase database = dbHelper.getWritableDatabase();
+
+        ContentValues contentValues = new ContentValues();
+        for (String tag : tags) {
+            contentValues.put(DBHelper.KEY_NAME, tag);
+            contentValues.put(DBHelper.KEY_PATH, currentPhotoPath);
+            database.insert(DBHelper.TABLE_NAME, null, contentValues);
+        }
+
+        Cursor cursor;
+        cursor = database.query(DBHelper.TABLE_NAME, null, null, null, null, null, null);
+
+        if (cursor.moveToFirst()) {
+            int idIndex = cursor.getColumnIndex(DBHelper.KEY_ID);
+            int nameIndex = cursor.getColumnIndex(DBHelper.KEY_NAME);
+            int emailIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
+            do {
+                Log.d("mLog", "ID = " + cursor.getInt(idIndex) +
+                        ", name = " + cursor.getString(nameIndex) +
+                        ", email = " + cursor.getString(emailIndex));
+            } while (cursor.moveToNext());
+        } else {
+            Log.d("mLog", "0 rows");
+        }
+        cursor.close();
+        database.close();
     }
 
     private void drawBitmap(Rect[] facesArray) {
@@ -361,6 +366,8 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < facesArray.length; i++) {
             relativeLayout.removeView(tvList.get(i));
             TextView tv = tvList.get(i);
+            setTextSize(tv);
+
             int tvWidth = ((int) (facesArray[i].br().x - facesArray[i].tl().x));
             LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams
                     (tvWidth, RelativeLayout.LayoutParams.WRAP_CONTENT);
@@ -380,6 +387,16 @@ public class MainActivity extends AppCompatActivity {
         Intent i = new Intent(this, FullImageActivity.class);
         i.putExtra(FILE_PATH, currentPhotoPath);
         startActivity(i);
+    }
+
+    private void setTextSize(TextView tv) {
+        if(ratioWidth < 0.35){
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        }else if(ratioWidth < 0.5){
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        }else if(ratioWidth < 0.7){
+            tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        }
     }
 
     private void saveBitmap(Bitmap mBitmap) {
@@ -409,7 +426,6 @@ public class MainActivity extends AppCompatActivity {
         if (resultCode == RESULT_OK) {
             switch (requestCode) {
                 case REQUEST_CODE_NAME:
-                    Log.d(TAG, "REQUEST_CODE_NAME");
                     String tag = data.getStringExtra(FACE_TAG);
                     tvList.get(data.getIntExtra(INDEX_TAG, -1)).setText(tag);
                     break;
@@ -422,14 +438,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
 
-                    Uri photoUri = data.getData();
-
-                    String[] currentPhotoPathColumn = {MediaStore.Images.Media.DATA};
-                    Cursor cursor = getContentResolver().query(photoUri, currentPhotoPathColumn, null, null, null);
-                    cursor.moveToFirst();
-                    int columnIndex = cursor.getColumnIndex(currentPhotoPathColumn[0]);
-                    currentPhotoPath = cursor.getString(columnIndex);
-                    cursor.close();
+                    currentPhotoPath = getPhotoPath(data);
 
                     Bitmap temp = BitmapFactory.decodeFile(currentPhotoPath);
                     Bitmap originalBitmap = rotateBitmap(temp, currentPhotoPath);
@@ -451,6 +460,17 @@ public class MainActivity extends AppCompatActivity {
             }
             super.onActivityResult(requestCode, resultCode, data);
         }
+    }
+
+    private String getPhotoPath(Intent data) {
+        Uri photoUri = data.getData();
+        String[] currentPhotoPathColumn = {MediaStore.Images.Media.DATA};
+        Cursor cursor = getContentResolver().query(photoUri, currentPhotoPathColumn, null, null, null);
+        cursor.moveToFirst();
+        int columnIndex = cursor.getColumnIndex(currentPhotoPathColumn[0]);
+        String photoPath = cursor.getString(columnIndex);
+        cursor.close();
+        return photoPath;
     }
 
     public Bitmap rotateBitmap(Bitmap bitmap, String currentPhotoPath) {
