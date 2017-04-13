@@ -86,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean detectionUsed;
     private double ratioWidth;
 
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+    private BaseLoaderCallback baseLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
             switch (status) {
@@ -154,9 +154,9 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         if (!OpenCVLoader.initDebug()) {
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, mLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, baseLoaderCallback);
         } else {
-            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+            baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
 
@@ -173,13 +173,11 @@ public class MainActivity extends AppCompatActivity {
 
                 Bitmap bitmapBeforeDetection = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
                 Bitmap bitmapAfterDetection  = faceDetection(bitmapBeforeDetection);
-                bitmapBeforeDetection.recycle();
                 if(bitmapAfterDetection == null){
                     Toast.makeText(this, "Image have been used already for detection", Toast.LENGTH_SHORT).show();
                     break;
                 }
                 imageView.setImageBitmap(bitmapAfterDetection);
-                bitmapAfterDetection.recycle();
                 break;
         }
     }
@@ -245,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
         imageMat = new Mat(bitmap.getHeight(),
                 bitmap.getWidth(), CvType.CV_8UC4);
         Mat grayMat = new Mat();
-        Utils.bitmapToMat(bitmap.copy(Bitmap.Config.ARGB_4444, true), imageMat);
+        Utils.bitmapToMat(bitmap.copy(Bitmap.Config.ARGB_8888, true), imageMat);
         Imgproc.cvtColor(imageMat, grayMat, Imgproc.COLOR_BGR2GRAY);
         int height = grayMat.rows();
         if (Math.round(height * RELATIVE_FACE_SIZE) > 0) {
@@ -265,25 +263,25 @@ public class MainActivity extends AppCompatActivity {
         ratioWidth = imageView.getMeasuredWidth() / bitmapWidth;
         double ratioHeight = imageView.getMeasuredHeight() / bitmapHeight;
 
-        int lpWidth = 0;
+        int lpWidth;
         textViewList.clear();
-        RelativeLayout.LayoutParams layoutParamsForTextView = new RelativeLayout.LayoutParams
-                (lpWidth, RelativeLayout.LayoutParams.WRAP_CONTENT);
-
 
         for (int i = 0; i < facesArray.length; i++) {
             Imgproc.rectangle(imageMat, facesArray[i].br(), facesArray[i].tl(), FACE_RECT_COLOR, 2);
             lpWidth = (((int) ((facesArray[i].br().x - facesArray[i].tl().x) * ratioWidth)));
 
             final TextView textViewTag = new TextView(this);
+
             textViewTag.setText(String.valueOf(i));
             textViewTag.setTextColor(ContextCompat.getColor(context, R.color.colorText));
             textViewTag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            layoutParamsForTextView.setMargins((int) (facesArray[i].tl().x * ratioWidth), (int) (facesArray[i].br().y * ratioHeight), 0, 0);
-            textViewTag.setLayoutParams(layoutParamsForTextView);
-            textViewTag.getLayoutParams().width = lpWidth;
 
             textViewList.add(textViewTag);
+
+            textViewTag.setX((float) (facesArray[i].tl().x * ratioWidth));
+            textViewTag.setY((float) (facesArray[i].br().y * ratioHeight));
+
+            textViewTag.setWidth(lpWidth);
             final int index = i;
 
             textViewTag.setOnClickListener(new View.OnClickListener() {
@@ -298,7 +296,7 @@ public class MainActivity extends AppCompatActivity {
             imageAndTagsRelativeLayout.addView(textViewList.get(i));
         }
 
-        Bitmap imageBitmap = Bitmap.createBitmap(imageMat.cols(), imageMat.rows(), Bitmap.Config.ARGB_4444);
+        Bitmap imageBitmap = Bitmap.createBitmap(imageMat.cols(), imageMat.rows(), Bitmap.Config.ARGB_8888);
         Utils.matToBitmap(imageMat, imageBitmap);
 
         detectionUsed = true;
@@ -361,29 +359,26 @@ public class MainActivity extends AppCompatActivity {
 
     private void drawBitmap(Rect[] facesArray) {
         final Bitmap backgroundBitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
-        Bitmap copyOfBackgroundBitmap = Bitmap.createBitmap(backgroundBitmap.getWidth(), backgroundBitmap.getHeight(), Bitmap.Config.ARGB_4444);
+        Bitmap copyOfBackgroundBitmap = Bitmap.createBitmap(backgroundBitmap.getWidth(), backgroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(copyOfBackgroundBitmap);
         canvas.drawBitmap(backgroundBitmap, 0, 0, null);
-        backgroundBitmap.recycle();
         LinearLayout textViewLinearLayout = new LinearLayout(this);
-        int tagWidth = 0;
-        LinearLayout.LayoutParams layoutParamsForDrawnTags = new LinearLayout.LayoutParams
-                (tagWidth, RelativeLayout.LayoutParams.WRAP_CONTENT);
+        int tagWidth;
 
 //Draw the image bitmap into the canvas
         for (int i = 0; i < facesArray.length; i++) {
             imageAndTagsRelativeLayout.removeView(textViewList.get(i));
-            TextView tag = textViewList.get(i);
-            setTextSize(tag);
+            TextView tagTextView = textViewList.get(i);
+            tagTextView.setX(0);
+            tagTextView.setY(0);
+            setTextSize(tagTextView);
 
             tagWidth = ((int) (facesArray[i].br().x - facesArray[i].tl().x));
-            tag.setLayoutParams(layoutParamsForDrawnTags);
-            tag.getLayoutParams().width = tagWidth;
+            tagTextView.setWidth(tagWidth);
 
-            textViewLinearLayout.addView(tag);
+            textViewLinearLayout.addView(tagTextView);
             textViewLinearLayout.measure(canvas.getWidth(), canvas.getHeight());
             textViewLinearLayout.layout(0, 0, canvas.getWidth(), canvas.getHeight());
-
             placeTextView(facesArray[i], canvas, textViewLinearLayout);
         }
         saveBitmap(copyOfBackgroundBitmap);
@@ -417,7 +412,6 @@ public class MainActivity extends AppCompatActivity {
             outputStream = new FileOutputStream(image);
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream); // bmp is your Bitmap instance
             // PNG is a lossless format, the compression factor (100) is ignored
-            bitmap.recycle();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -452,9 +446,7 @@ public class MainActivity extends AppCompatActivity {
 
                     Bitmap tempGalleryBitmap = BitmapFactory.decodeFile(currentPhotoPath);
                     Bitmap originalGalleryBitmap = rotateBitmap(tempGalleryBitmap, currentPhotoPath);
-                    tempGalleryBitmap.recycle();
                     imageView.setImageBitmap(originalGalleryBitmap);
-                    originalGalleryBitmap.recycle();
                     break;
 
                 case REQUEST_CODE_CAMERA:
@@ -468,9 +460,7 @@ public class MainActivity extends AppCompatActivity {
                     Bitmap scaledCameraBitmap = Bitmap.createScaledBitmap(tempCameraBitmap, 800, 600, true);
                     tempCameraBitmap.recycle();
                     Bitmap originalCameraBitmap = rotateBitmap(scaledCameraBitmap, currentPhotoPath);
-                    scaledCameraBitmap.recycle();
                     imageView.setImageBitmap(originalCameraBitmap);
-                    originalCameraBitmap.recycle();
                     break;
             }
             super.onActivityResult(requestCode, resultCode, data);

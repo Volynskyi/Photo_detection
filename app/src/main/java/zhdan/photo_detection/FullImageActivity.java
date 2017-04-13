@@ -10,6 +10,8 @@ import android.widget.Toast;
 
 public class FullImageActivity extends AppCompatActivity {
 
+    Bitmap bitmap;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -20,22 +22,21 @@ public class FullImageActivity extends AppCompatActivity {
         Intent intent = getIntent();
         if (intent.hasExtra(GridLayoutDemoActivity.POSITION)) {
             int position = intent.getExtras().getInt(GridLayoutDemoActivity.POSITION);
-            Bitmap bitmap = BitmapFactory.decodeFile(ImageAdapter.photoDataList.get(position).getPhotoPath());
+            bitmap = BitmapFactory.decodeFile(ImageAdapter.photoDataList.get(position).getPhotoPath());
             imageView.setImageBitmap(bitmap);
-            bitmap.recycle();
 
         } else if (intent.hasExtra(MainActivity.FILE_PATH)) {
             Toast.makeText(this, "Image have been saved", Toast.LENGTH_SHORT).show();
             String filepath = intent.getExtras().getString(MainActivity.FILE_PATH);
-            Bitmap bitmap = BitmapFactory.decodeFile(filepath);
+            bitmap = BitmapFactory.decodeFile(filepath);
             imageView.setImageBitmap(bitmap);
-            bitmap.recycle();
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        bitmap.recycle();
         finish();
     }
 }
