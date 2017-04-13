@@ -173,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
 
                 Bitmap bitmapBeforeDetection = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
                 Bitmap bitmapAfterDetection  = faceDetection(bitmapBeforeDetection);
+                bitmapBeforeDetection.recycle();
                 if(bitmapAfterDetection == null){
                     Toast.makeText(this, "Image have been used already for detection", Toast.LENGTH_SHORT).show();
                     break;
@@ -458,7 +459,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                     Bitmap tempCameraBitmap = BitmapFactory.decodeFile(currentPhotoPath);
                     Bitmap scaledCameraBitmap = Bitmap.createScaledBitmap(tempCameraBitmap, 800, 600, true);
-                    tempCameraBitmap.recycle();
                     Bitmap originalCameraBitmap = rotateBitmap(scaledCameraBitmap, currentPhotoPath);
                     imageView.setImageBitmap(originalCameraBitmap);
                     break;
