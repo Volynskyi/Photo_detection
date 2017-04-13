@@ -8,20 +8,19 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 import java.util.List;
 
-public class DBHelper extends SQLiteOpenHelper{
+class DBHelper extends SQLiteOpenHelper {
 
     private static final int DATABASE_VERSION = 1;
     private static final String DATABASE_NAME = "tagDb";
-    public static final String TABLE_NAME = "Tags";
+    static final String TABLE_NAME = "Tags";
 
     // Labels Table Columns names
-    public static final String KEY_ID = "_id";
-    public static final String KEY_NAME = "name";
-    public static final String KEY_PATH = "path";
+    static final String KEY_ID = "_id";
+    static final String KEY_NAME = "name";
+    static final String KEY_PATH = "path";
 
 
-
-    public DBHelper(Context context) {
+    DBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
@@ -36,11 +35,6 @@ public class DBHelper extends SQLiteOpenHelper{
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         db.execSQL("drop table if exists " + TABLE_NAME);
         onCreate(db);
-    }
-
-    public void insertTags(List<String> tags){
-
-
     }
 
 }

@@ -2,10 +2,8 @@ package zhdan.photo_detection;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Log;
-import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,28 +14,21 @@ import android.widget.CompoundButton;
 import android.widget.ImageView;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
-/**
- * Created by vova on 17.03.2017.
- */
 
-public class ImageAdapter extends BaseAdapter {
+class ImageAdapter extends BaseAdapter {
 
-    private Context mContext;
+    private Context context;
     private SparseIntArray checkedItems;
     private DBHelper dbHelper;
 
-    // Keep path in array
-    private ArrayList<PhotoData> photoDataList;
+    static ArrayList<PhotoData> photoDataList;
 
-
-    // Constructor
     ImageAdapter(Context c, ArrayList<PhotoData> photoDataList) {
         Log.d(MainActivity.TAG, "New object");
         checkedItems = new SparseIntArray();
         dbHelper = new DBHelper(c);
-        mContext = c;
+        context = c;
         this.photoDataList = photoDataList;
     }
 
@@ -59,8 +50,7 @@ public class ImageAdapter extends BaseAdapter {
         return position;
     }
 
-    private static class ViewHolder
-    {
+    private static class ViewHolder {
         ImageView imgView;
         CheckBox checkBox;
         int id;
@@ -71,39 +61,34 @@ public class ImageAdapter extends BaseAdapter {
     @Override
     public View getView(final int position, View convertView, ViewGroup parent) {
         ViewHolder viewHolder;
-        LayoutInflater inflater = LayoutInflater.from(mContext);
-        if(convertView == null)
-        {
+        LayoutInflater inflater = LayoutInflater.from(context);
+        if (convertView == null) {
             viewHolder = new ViewHolder();
             convertView = inflater.inflate(R.layout.grid_item_layout, null);
             viewHolder.imgView = (ImageView) convertView.findViewById(R.id.itemImageView);
             viewHolder.checkBox = (CheckBox) convertView.findViewById(R.id.itemCheckBox);
             Log.d(MainActivity.TAG, "photoDataList.get(position).isVisible() = " + photoDataList.get(position).isVisible() + position);
-            if(photoDataList.get(position).isVisible()) {
+            if (photoDataList.get(position).isVisible()) {
                 viewHolder.checkBox.setVisibility(View.VISIBLE);
             } else {
                 viewHolder.checkBox.setVisibility(View.GONE);
             }
             convertView.setTag(viewHolder);
-        }
-        else
-        {
+        } else {
             viewHolder = (ViewHolder) convertView.getTag();
         }
 
         final PhotoData photoData = getItem(position);
-        Bitmap bitmap = BitmapFactory.decodeFile(photoData.getPhotoPath());
-        viewHolder.imgView.setImageBitmap(bitmap);
+        viewHolder.imgView.setImageBitmap(BitmapFactory.decodeFile(photoData.getPhotoPath()));
         viewHolder.id = photoData.getId();
         viewHolder.visible = photoData.isVisible();
         viewHolder.selected = photoData.isSelected();
 
         if (!viewHolder.visible)
             viewHolder.checkBox.setVisibility(View.GONE);
-        else
-        {
+        else {
             viewHolder.checkBox.setVisibility(View.VISIBLE);
-            if(viewHolder.selected){
+            if (viewHolder.selected) {
                 viewHolder.checkBox.setChecked(true);
                 Log.d(MainActivity.TAG, "OnLongClick in position = " + position);
                 checkedItems.put(photoData.getId(), position);
@@ -113,12 +98,10 @@ public class ImageAdapter extends BaseAdapter {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 
-                    if(buttonView.isChecked()){
+                    if (buttonView.isChecked()) {
                         Log.d(MainActivity.TAG, "Checked in position = " + position);
                         checkedItems.put(photoData.getId(), position);
-                    }
-                    else
-                    {
+                    } else {
                         Log.d(MainActivity.TAG, "Unchecked in position = " + position);
                         checkedItems.delete(photoData.getId());
                     }
@@ -127,7 +110,6 @@ public class ImageAdapter extends BaseAdapter {
         }
         return convertView;
     }
-
 
     SparseIntArray getSelectedIds() {
         return checkedItems;

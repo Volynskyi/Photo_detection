@@ -3,10 +3,9 @@ package zhdan.photo_detection;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
-import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 import android.view.ActionMode;
 import android.view.Menu;
@@ -17,7 +16,6 @@ import android.widget.GridView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class GridLayoutDemoActivity extends AppCompatActivity {
     private DBHelper dbHelper;
@@ -28,8 +26,6 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
     private ActionMode actionMode;
     private GridView gridView;
 
-
-    /** Called when the activity is first created. */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,8 +41,7 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
         MenuItem itemSearch = menu.findItem(R.id.item_search1);
         SearchView searchView = (SearchView) itemSearch.getActionView();
         searchView.setIconified(false);
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener()
-        {
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 photoDataList.clear();
@@ -54,24 +49,23 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                 database = dbHelper.getReadableDatabase();
 
                 String selection = "name = ?";
-                String[] selectionArgs = new String[] { query };
+                String[] selectionArgs = new String[]{query};
                 Cursor cursor = database.query(DBHelper.TABLE_NAME, null, selection, selectionArgs, null, null,
                         null);
 
-                if(cursor.moveToFirst()){
+                if (cursor.moveToFirst()) {
                     int pathIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
                     int idIndex = cursor.getColumnIndex(DBHelper.KEY_ID);
 
-                    do{
-                        String path = cursor.getString(pathIndex);
-                        int id = cursor.getInt(idIndex);
-                        boolean visible = false;
-                        boolean selected = false;
-                        PhotoData photoData = new PhotoData(path, id, visible, selected);
+                    String path;
+                    int id;
+                    do {
+                        path = cursor.getString(pathIndex);
+                        id = cursor.getInt(idIndex);
+                        PhotoData photoData = new PhotoData(path, id, false, false);
                         photoDataList.add(photoData);
-                    }while (cursor.moveToNext());
-                }
-                else{
+                    } while (cursor.moveToNext());
+                } else {
                     Toast.makeText(getApplicationContext(), "No photos found", Toast.LENGTH_SHORT).show();
                     cursor.close();
                     return false;
@@ -83,17 +77,15 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                 gridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
                     @Override
                     public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
-                        if (actionMode == null){
-
+                        if (actionMode == null) {
                             actionMode = startActionMode(callback);
 
-                            for(int i = 0; i != photoDataList.size(); i++) {
+                            for (int i = 0; i != photoDataList.size(); i++) {
                                 photoDataList.get(i).setVisible(true);
                             }
                             photoDataList.get(position).setSelected(true);
                             imageAdapter.notifyDataSetChanged();
-                        }
-                        else
+                        } else
                             actionMode.finish();
                         return true;
                     }
@@ -110,7 +102,6 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                         startActivity(i);
                     }
                 });
-
                 cursor.close();
                 return false;
             }
@@ -142,13 +133,13 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                             .getSelectedIds();
                     // Captures all selected ids with a loop
 
+                    int key;
                     for (int i = (selected.size() - 1); i >= 0; i--) {
-                        int key = selected.keyAt(i);
+                        key = selected.keyAt(i);
                         imageAdapter.removeFromDB(key);
-                            // Remove selected items following the ids
+                        // Remove selected items following the ids
                         photoDataList.remove(selected.get(key));
                     }
-
 
                     // Close CAB
                     mode.finish();
@@ -164,11 +155,10 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
     };
 
 
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(database != null){
+        if (database != null) {
             database.close();
         }
     }

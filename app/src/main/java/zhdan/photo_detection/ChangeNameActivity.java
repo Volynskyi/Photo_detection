@@ -3,20 +3,15 @@ package zhdan.photo_detection;
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-
-/**
- * Created by vova on 07.03.2017.
- */
-public class ChangeNameActivity extends Activity implements View.OnClickListener{
+public class ChangeNameActivity extends Activity implements View.OnClickListener {
     EditText etName;
     Button btnName;
-    String state_name;
+    String stateName;
     final static String TAG = "FaceDetectionActivity";
     int index;
 
@@ -30,11 +25,11 @@ public class ChangeNameActivity extends Activity implements View.OnClickListener
         btnName.setOnClickListener(this);
 
         Intent intent = getIntent();
-        state_name = intent.getStringExtra(MainActivity.FACE_TAG);
+        stateName = intent.getStringExtra(MainActivity.FACE_TAG);
         index = intent.getIntExtra(MainActivity.INDEX_TAG, -1);
         Log.d(TAG, "" + index);
 
-        etName.setText(state_name);
+        etName.setText(stateName);
     }
 
     @Override
