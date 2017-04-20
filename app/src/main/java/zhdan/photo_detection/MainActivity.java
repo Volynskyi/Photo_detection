@@ -146,7 +146,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
@@ -197,9 +196,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     case R.id.camera:
                         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                        // Ensure that there's a camera activity to handle the intent
                         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-                            // Create the File where the photo should go
                             File photoFile = null;
                             try {
                                 photoFile = createImageFile();
@@ -207,7 +204,6 @@ public class MainActivity extends AppCompatActivity {
                                 Log.e(TAG, "Failed to create image file");
                                 ex.printStackTrace();
                             }
-                            // Continue only if the File was successfully created
                             if (photoFile != null) {
                                 photoURI = FileProvider.getUriForFile(getApplicationContext(),
                                         "com.example.android.fileprovider",
@@ -224,7 +220,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private File createImageFile() throws IOException {
-        // Create an image file name
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "JPEG_" + timeStamp + "_";
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
@@ -244,7 +239,7 @@ public class MainActivity extends AppCompatActivity {
         imageMat = new Mat(bitmap.getHeight(),
                 bitmap.getWidth(), CvType.CV_8UC4);
         Mat grayMat = new Mat();
-        Utils.bitmapToMat(bitmap.copy(Bitmap.Config.ARGB_8888, true), imageMat);
+        Utils.bitmapToMat(bitmap.copy(Bitmap.Config.RGB_565, true), imageMat);
         Imgproc.cvtColor(imageMat, grayMat, Imgproc.COLOR_BGR2GRAY);
         int height = grayMat.rows();
         if (Math.round(height * RELATIVE_FACE_SIZE) > 0) {
@@ -290,14 +285,14 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View v) {
                     Intent intent = new Intent(getApplicationContext(), ChangeNameActivity.class);
                     intent.putExtra(FACE_TAG, textViewTag.getText().toString());
-                    intent.putExtra(INDEX_TAG, index); //ідентифікуєм вибраний елемент
+                    intent.putExtra(INDEX_TAG, index);
                     startActivityForResult(intent, REQUEST_CODE_NAME);
                 }
             });
             imageAndTagsRelativeLayout.addView(textViewList.get(i));
         }
 
-        Bitmap imageBitmap = Bitmap.createBitmap(imageMat.cols(), imageMat.rows(), Bitmap.Config.ARGB_8888);
+        Bitmap imageBitmap = Bitmap.createBitmap(imageMat.cols(), imageMat.rows(), Bitmap.Config.RGB_565);
         Utils.matToBitmap(imageMat, imageBitmap);
 
         detectionUsed = true;
@@ -345,11 +340,11 @@ public class MainActivity extends AppCompatActivity {
         if (cursor.moveToFirst()) {
             int idIndex = cursor.getColumnIndex(DBHelper.KEY_ID);
             int nameIndex = cursor.getColumnIndex(DBHelper.KEY_NAME);
-            int emailIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
+            int pathIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
             do {
                 Log.d("mLog", "ID = " + cursor.getInt(idIndex) +
                         ", name = " + cursor.getString(nameIndex) +
-                        ", email = " + cursor.getString(emailIndex));
+                        ", path = " + cursor.getString(pathIndex));
             } while (cursor.moveToNext());
         } else {
             Log.d("mLog", "0 rows");
@@ -360,13 +355,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void drawBitmap(Rect[] facesArray) {
         final Bitmap backgroundBitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
-        Bitmap copyOfBackgroundBitmap = Bitmap.createBitmap(backgroundBitmap.getWidth(), backgroundBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        Bitmap copyOfBackgroundBitmap = Bitmap.createBitmap(backgroundBitmap.getWidth(), backgroundBitmap.getHeight(), Bitmap.Config.RGB_565);
         Canvas canvas = new Canvas(copyOfBackgroundBitmap);
         canvas.drawBitmap(backgroundBitmap, 0, 0, null);
         LinearLayout textViewLinearLayout = new LinearLayout(this);
         int tagWidth;
 
-//Draw the image bitmap into the canvas
         for (int i = 0; i < facesArray.length; i++) {
             imageAndTagsRelativeLayout.removeView(textViewList.get(i));
             TextView tagTextView = textViewList.get(i);
@@ -411,8 +405,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             image = createImageFile();
             outputStream = new FileOutputStream(image);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream); // bmp is your Bitmap instance
-            // PNG is a lossless format, the compression factor (100) is ignored
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

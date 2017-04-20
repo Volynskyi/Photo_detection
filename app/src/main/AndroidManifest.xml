@@ -13,9 +13,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="Photo_detection"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light"
-        android:hardwareAccelerated="false"
-        android:largeHeap="true">
+        android:theme="@style/Theme.AppCompat.Light">
         <provider
             android:name="android.support.v4.content.FileProvider"
             android:authorities="com.example.android.fileprovider"

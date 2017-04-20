@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
+import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.ActionMode;
 import android.view.Menu;
@@ -32,11 +33,11 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
         setContentView(R.layout.activity_grid_layout_demo);
         dbHelper = new DBHelper(getApplicationContext());
         gridView = (GridView) findViewById(R.id.gridView);
+        database = dbHelper.getReadableDatabase();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_grid_layout_demo, menu);
         MenuItem itemSearch = menu.findItem(R.id.item_search1);
         SearchView searchView = (SearchView) itemSearch.getActionView();
@@ -45,25 +46,19 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 photoDataList.clear();
-
-                database = dbHelper.getReadableDatabase();
-
                 String selection = "name = ?";
                 String[] selectionArgs = new String[]{query};
                 Cursor cursor = database.query(DBHelper.TABLE_NAME, null, selection, selectionArgs, null, null,
                         null);
-
                 if (cursor.moveToFirst()) {
                     int pathIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
                     int idIndex = cursor.getColumnIndex(DBHelper.KEY_ID);
-
                     String path;
                     int id;
                     do {
                         path = cursor.getString(pathIndex);
                         id = cursor.getInt(idIndex);
-                        PhotoData photoData = new PhotoData(path, id, false, false);
-                        photoDataList.add(photoData);
+                        photoDataList.add(new PhotoData(path, id, false, false));
                     } while (cursor.moveToNext());
                 } else {
                     Toast.makeText(getApplicationContext(), "No photos found", Toast.LENGTH_SHORT).show();
@@ -72,7 +67,6 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                 }
                 imageAdapter = new ImageAdapter(getApplicationContext(), photoDataList);
 
-                // устанавливаем адаптер через экземпляр класса ImageAdapter
                 gridView.setAdapter(imageAdapter);
                 gridView.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
                     @Override
@@ -94,10 +88,8 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                 gridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                     @Override
                     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                        // посылаем идентификатор картинки в FullScreenActivity
                         Intent i = new Intent(getApplicationContext(),
                                 FullImageActivity.class);
-                        // передаем индекс массива
                         i.putExtra(POSITION, position);
                         startActivity(i);
                     }
@@ -128,20 +120,15 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
         public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
             switch (item.getItemId()) {
                 case R.id.delete:
-                    // Calls getSelectedIds method from ListViewAdapter Class
                     SparseIntArray selected = imageAdapter
                             .getSelectedIds();
-                    // Captures all selected ids with a loop
-
                     int key;
                     for (int i = (selected.size() - 1); i >= 0; i--) {
                         key = selected.keyAt(i);
                         imageAdapter.removeFromDB(key);
-                        // Remove selected items following the ids
                         photoDataList.remove(selected.get(key));
                     }
 
-                    // Close CAB
                     mode.finish();
                     return true;
                 default:
@@ -158,6 +145,7 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d(MainActivity.TAG, "onDestroy");
         if (database != null) {
             database.close();
         }

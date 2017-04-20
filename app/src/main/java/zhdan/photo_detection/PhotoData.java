@@ -1,17 +1,12 @@
 package zhdan.photo_detection;
 
-/**
- * Created by vova on 09.04.2017.
- */
-
-public class PhotoData {
+class PhotoData {
     private String photoPath;
     private int id;
     private boolean visible;
     private boolean selected;
 
-
-    public PhotoData(String photoPath, int id, boolean selected, boolean visible) {
+    PhotoData(String photoPath, int id, boolean selected, boolean visible) {
         this.photoPath = photoPath;
         this.selected = selected;
         this.visible = visible;

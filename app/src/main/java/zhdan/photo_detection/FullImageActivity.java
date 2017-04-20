@@ -12,17 +12,18 @@ public class FullImageActivity extends AppCompatActivity {
 
     Bitmap bitmap;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_full_image);
         ImageView imageView = (ImageView) findViewById(R.id.full_image_view);
 
-        // get intent data
         Intent intent = getIntent();
         if (intent.hasExtra(GridLayoutDemoActivity.POSITION)) {
             int position = intent.getExtras().getInt(GridLayoutDemoActivity.POSITION);
-            bitmap = BitmapFactory.decodeFile(ImageAdapter.photoDataList.get(position).getPhotoPath());
+            ImageAdapter imageAdapter = new ImageAdapter();
+            bitmap = BitmapFactory.decodeFile(imageAdapter.photoDataList.get(position).getPhotoPath());
             imageView.setImageBitmap(bitmap);
 
         } else if (intent.hasExtra(MainActivity.FILE_PATH)) {
@@ -36,7 +37,6 @@ public class FullImageActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        bitmap.recycle();
         finish();
     }
 }
