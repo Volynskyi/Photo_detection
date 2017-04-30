@@ -1,36 +1,26 @@
 package zhdan.photo_detection;
 
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Matrix;
 import android.graphics.drawable.BitmapDrawable;
-import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.PopupMenu;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -41,15 +31,10 @@ import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.objdetect.CascadeClassifier;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -58,90 +43,52 @@ public class MainActivity extends AppCompatActivity {
     private final int REQUEST_CODE_CAMERA = 1;
     private final int REQUEST_CODE_NAME = 2;
     private final float RELATIVE_FACE_SIZE = 0.2f;
+    private final String PHOTO_MIME_TYPE = "image/png";
+    private final String CURRENT_PHOTO_PATH = "currentPhotoPath";
+    private final String SAVE_USED = "saveUsed";
+    private final String DETECTION_USED = "detectionUsed";
 
-    public static final String TAG = "FaceDetectionActivity";
     public static final String FACE_TAG = "faceTag";
     public static final String INDEX_TAG = "indexTag";
     public static final String FILE_PATH = "filePath";
 
-    private final Scalar FACE_RECT_COLOR = new Scalar(0, 255, 0, 255);
-
     //Activity variables
     private Context context = this;
     private ImageView imageView;
-    private RelativeLayout imageAndTagsRelativeLayout;
+    RelativeLayout imageAndTagsRelativeLayout;
 
-    // OpenCV variables
-    private CascadeClassifier cascadeClassifier;
-    private Mat imageMat;
+    //OpenCV variables
+    private OpenCVHelper openCVHelper;
     private Rect[] facesArray;
-    private int absoluteFaceSize;
 
-    //DB variables
     private DBHelper dbHelper;
-
-    private String currentPhotoPath;
-    private Uri photoURI;
-    private List<TextView> textViewList;
+    private PhotoLab photoLab;
+    static String currentPhotoPath;
+    private ArrayList<TextView> textViewList;
     private boolean detectionUsed;
-    private double ratioWidth;
-
-    private BaseLoaderCallback baseLoaderCallback = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS: {
-                    Log.i("OpenCV", "OpenCV loaded successfully");
-                    try {
-                        loadCascadeFile();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Log.i(TAG, "Failed to load cascade. Exception thrown: " + e);
-                    }
-                    imageMat = new Mat();
-                }
-                break;
-                default: {
-                    super.onManagerConnected(status);
-                }
-                break;
-            }
-        }
-
-        private void loadCascadeFile() throws IOException {
-            InputStream is = context.getResources().openRawResource(R.raw.haarcascade_frontalface_alt);
-            File cascadeDir = context.getDir("cascade", Context.MODE_PRIVATE);
-            File cascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
-            FileOutputStream os = new FileOutputStream(cascadeFile);
-
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
-            }
-            is.close();
-            os.close();
-
-            cascadeClassifier = new CascadeClassifier(cascadeFile.getAbsolutePath());
-            if (cascadeClassifier.empty()) {
-                Log.e("TAG", "Failed to load cascade classifier");
-                cascadeClassifier = null;
-            } else
-                Log.i("TAG", "Loaded cascade classifier from " + cascadeFile.getAbsolutePath());
-
-            cascadeFile.delete();
-            cascadeDir.delete();
-        }
-    };
+    private boolean saveUsed;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        imageView = ((ImageView) findViewById(R.id.image_view1));
-        imageAndTagsRelativeLayout = (RelativeLayout) findViewById(R.id.relative_layout2);
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+        imageView = ((ImageView) findViewById(R.id.image_view));
+        imageAndTagsRelativeLayout = (RelativeLayout) findViewById(R.id.relative_layout_image);
         textViewList = new ArrayList<>();
         dbHelper = new DBHelper(this);
+        openCVHelper = new OpenCVHelper(getApplicationContext());
+        photoLab = new PhotoLab(this);
+        if (savedInstanceState != null) {
+            currentPhotoPath = savedInstanceState.getString(CURRENT_PHOTO_PATH);
+            Bitmap savedBitmap = BitmapFactory.decodeFile(currentPhotoPath);
+            Bitmap rotatedBitmap = photoLab.rotateBitmap(savedBitmap, currentPhotoPath);
+            imageView.setImageBitmap(rotatedBitmap);
+            if (savedInstanceState.containsKey(SAVE_USED)) {
+                saveUsed = savedInstanceState.getBoolean(SAVE_USED);
+                detectionUsed = savedInstanceState.getBoolean(DETECTION_USED);
+            }
+        }
     }
 
     @Override
@@ -150,12 +97,13 @@ public class MainActivity extends AppCompatActivity {
         return true;
     }
 
+    @Override
     public void onResume() {
         super.onResume();
         if (!OpenCVLoader.initDebug()) {
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, baseLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_2_0, this, openCVHelper.baseLoaderCallback);
         } else {
-            baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+            openCVHelper.baseLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
         }
     }
 
@@ -165,18 +113,17 @@ public class MainActivity extends AppCompatActivity {
                 getFile(view);
                 break;
             case R.id.btnDetect:
-                if(imageView.getDrawable() == null){
-                    Toast.makeText(this, "First choose an image", Toast.LENGTH_SHORT).show();
+                if (imageView.getDrawable() == null) {
+                    Toast.makeText(this, R.string.toast_on_detect_no_bitmap, Toast.LENGTH_SHORT).show();
                     break;
                 }
-
+                if (detectionUsed) {
+                    Toast.makeText(this, R.string.toast_on_detect_image_already_saved, Toast.LENGTH_SHORT).show();
+                    break;
+                }
                 Bitmap bitmapBeforeDetection = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
-                Bitmap bitmapAfterDetection  = faceDetection(bitmapBeforeDetection);
+                Bitmap bitmapAfterDetection = faceDetection(bitmapBeforeDetection);
                 bitmapBeforeDetection.recycle();
-                if(bitmapAfterDetection == null){
-                    Toast.makeText(this, "Image have been used already for detection", Toast.LENGTH_SHORT).show();
-                    break;
-                }
                 imageView.setImageBitmap(bitmapAfterDetection);
                 break;
         }
@@ -191,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
                 switch (item.getItemId()) {
                     case R.id.gallery:
                         Intent photoPickerIntent = new Intent(Intent.ACTION_PICK);
-                        photoPickerIntent.setType("image/*");
+                        photoPickerIntent.setType(getString(R.string.photo_picker_intent_type));
                         startActivityForResult(photoPickerIntent, REQUEST_CODE_GALLERY);
                         break;
                     case R.id.camera:
@@ -199,19 +146,19 @@ public class MainActivity extends AppCompatActivity {
                         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
                             File photoFile = null;
                             try {
-                                photoFile = createImageFile();
+                                photoFile = photoLab.createImageFile();
                             } catch (IOException ex) {
-                                Log.e(TAG, "Failed to create image file");
                                 ex.printStackTrace();
                             }
                             if (photoFile != null) {
-                                photoURI = FileProvider.getUriForFile(getApplicationContext(),
-                                        "com.example.android.fileprovider",
+                                Uri photoUri = FileProvider.getUriForFile(getApplicationContext(),
+                                        getString(R.string.authority),
                                         photoFile);
-                                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
                                 startActivityForResult(takePictureIntent, REQUEST_CODE_CAMERA);
                             }
                         }
+                        break;
                 }
                 return false;
             }
@@ -219,24 +166,9 @@ public class MainActivity extends AppCompatActivity {
         popupMenu.show();
     }
 
-    private File createImageFile() throws IOException {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "JPEG_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
-        );
-        currentPhotoPath = image.getAbsolutePath();
-        return image;
-    }
-
     private Bitmap faceDetection(Bitmap bitmap) {
-        if(detectionUsed){
-            return null;
-        }
-        imageMat = new Mat(bitmap.getHeight(),
+        int absoluteFaceSize = 0;
+        Mat imageMat = new Mat(bitmap.getHeight(),
                 bitmap.getWidth(), CvType.CV_8UC4);
         Mat grayMat = new Mat();
         Utils.bitmapToMat(bitmap.copy(Bitmap.Config.RGB_565, true), imageMat);
@@ -245,41 +177,31 @@ public class MainActivity extends AppCompatActivity {
         if (Math.round(height * RELATIVE_FACE_SIZE) > 0) {
             absoluteFaceSize = Math.round(height * RELATIVE_FACE_SIZE);
         }
-
         MatOfRect faces = new MatOfRect();
-        cascadeClassifier.detectMultiScale(grayMat, faces, 1.3, 2, 2,
+        openCVHelper.getCascadeClassifier().detectMultiScale(grayMat, faces, 1.3, 2, 2,
                 new Size(absoluteFaceSize, absoluteFaceSize), new Size());
         facesArray = faces.toArray();
 
         double bitmapWidth = bitmap.getWidth();
         double bitmapHeight = bitmap.getHeight();
-
         bitmap.recycle();
-
-        ratioWidth = imageView.getMeasuredWidth() / bitmapWidth;
+        double ratioWidth = imageView.getMeasuredWidth() / bitmapWidth;
         double ratioHeight = imageView.getMeasuredHeight() / bitmapHeight;
-
         int lpWidth;
         textViewList.clear();
 
         for (int i = 0; i < facesArray.length; i++) {
-            Imgproc.rectangle(imageMat, facesArray[i].br(), facesArray[i].tl(), FACE_RECT_COLOR, 2);
+            Imgproc.rectangle(imageMat, facesArray[i].br(), facesArray[i].tl(), new Scalar(0, 255, 0, 255), 2);
             lpWidth = (((int) ((facesArray[i].br().x - facesArray[i].tl().x) * ratioWidth)));
-
             final TextView textViewTag = new TextView(this);
-
             textViewTag.setText(String.valueOf(i));
             textViewTag.setTextColor(ContextCompat.getColor(context, R.color.colorText));
             textViewTag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-
             textViewList.add(textViewTag);
-
             textViewTag.setX((float) (facesArray[i].tl().x * ratioWidth));
             textViewTag.setY((float) (facesArray[i].br().y * ratioHeight));
-
             textViewTag.setWidth(lpWidth);
             final int index = i;
-
             textViewTag.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -294,7 +216,6 @@ public class MainActivity extends AppCompatActivity {
 
         Bitmap imageBitmap = Bitmap.createBitmap(imageMat.cols(), imageMat.rows(), Bitmap.Config.RGB_565);
         Utils.matToBitmap(imageMat, imageBitmap);
-
         detectionUsed = true;
         return imageBitmap;
     }
@@ -302,124 +223,57 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.item_save:
-                if(imageAndTagsRelativeLayout.getChildCount() == 0 || (imageView.getDrawable() == null)){
-                    Toast.makeText(this, "Nothing to save", Toast.LENGTH_SHORT).show();
-                    break;
+            case R.id.item_share:
+                if (!saveUsed) {
+                    Toast.makeText(this, R.string.toast_error_to_share, Toast.LENGTH_SHORT).show();
+                    return true;
                 }
-                drawBitmap(facesArray);
+                sharePhoto();
+                return true;
 
+            case R.id.item_save:
+                if (imageAndTagsRelativeLayout.getChildCount() == 0 || (imageView.getDrawable() == null)) {
+                    Toast.makeText(this, R.string.toast_on_save_no_data, Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                if (saveUsed) {
+                    Toast.makeText(this, R.string.toast_on_save_used_before, Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                Bitmap canvasBitmap = photoLab.drawBitmap(facesArray, imageView, textViewList, imageAndTagsRelativeLayout);
+                photoLab.saveBitmap(canvasBitmap);
                 List<String> tagNames = new ArrayList<>(textViewList.size());
                 for (TextView textView : textViewList) {
                     tagNames.add(textView.getText().toString());
                 }
+                dbHelper.insertTagsIntoDB(tagNames, currentPhotoPath);
+                saveUsed = true;
+                Intent i = new Intent(this, FullImageActivity.class);
+                i.putExtra(FILE_PATH, currentPhotoPath);
+                startActivity(i);
+                return true;
 
-                insertTagsIntoDB(tagNames);
-                break;
             case R.id.item_search:
                 Intent intent = new Intent(this, GridLayoutDemoActivity.class);
                 startActivity(intent);
-                break;
+                return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void insertTagsIntoDB(List<String> tags) {
-        SQLiteDatabase database = dbHelper.getWritableDatabase();
-
-        ContentValues contentValues = new ContentValues();
-        for (String tag : tags) {
-            contentValues.put(DBHelper.KEY_NAME, tag);
-            contentValues.put(DBHelper.KEY_PATH, currentPhotoPath);
-            database.insert(DBHelper.TABLE_NAME, null, contentValues);
-        }
-
-        Cursor cursor;
-        cursor = database.query(DBHelper.TABLE_NAME, null, null, null, null, null, null);
-
-        if (cursor.moveToFirst()) {
-            int idIndex = cursor.getColumnIndex(DBHelper.KEY_ID);
-            int nameIndex = cursor.getColumnIndex(DBHelper.KEY_NAME);
-            int pathIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
-            do {
-                Log.d("mLog", "ID = " + cursor.getInt(idIndex) +
-                        ", name = " + cursor.getString(nameIndex) +
-                        ", path = " + cursor.getString(pathIndex));
-            } while (cursor.moveToNext());
-        } else {
-            Log.d("mLog", "0 rows");
-        }
-        cursor.close();
-        database.close();
+    private void sharePhoto() {
+        final Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType(PHOTO_MIME_TYPE);
+        intent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(new File(currentPhotoPath)));
+        intent.putExtra(Intent.EXTRA_SUBJECT,
+                getString(R.string.photo_send_extra_subject));
+        intent.putExtra(Intent.EXTRA_TEXT,
+                getString(R.string.photo_send_extra_text));
+        startActivity(Intent.createChooser(intent,
+                getString(R.string.photo_send_chooser_title)));
     }
 
-    private void drawBitmap(Rect[] facesArray) {
-        final Bitmap backgroundBitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
-        Bitmap copyOfBackgroundBitmap = Bitmap.createBitmap(backgroundBitmap.getWidth(), backgroundBitmap.getHeight(), Bitmap.Config.RGB_565);
-        Canvas canvas = new Canvas(copyOfBackgroundBitmap);
-        canvas.drawBitmap(backgroundBitmap, 0, 0, null);
-        LinearLayout textViewLinearLayout = new LinearLayout(this);
-        int tagWidth;
-
-        for (int i = 0; i < facesArray.length; i++) {
-            imageAndTagsRelativeLayout.removeView(textViewList.get(i));
-            TextView tagTextView = textViewList.get(i);
-            tagTextView.setX(0);
-            tagTextView.setY(0);
-            setTextSize(tagTextView);
-
-            tagWidth = ((int) (facesArray[i].br().x - facesArray[i].tl().x));
-            tagTextView.setWidth(tagWidth);
-
-            textViewLinearLayout.addView(tagTextView);
-            textViewLinearLayout.measure(canvas.getWidth(), canvas.getHeight());
-            textViewLinearLayout.layout(0, 0, canvas.getWidth(), canvas.getHeight());
-            placeTextView(facesArray[i], canvas, textViewLinearLayout);
-        }
-        saveBitmap(copyOfBackgroundBitmap);
-        Intent i = new Intent(this, FullImageActivity.class);
-        i.putExtra(FILE_PATH, currentPhotoPath);
-        startActivity(i);
-    }
-
-    private void placeTextView(Rect rect, Canvas canvas, LinearLayout containerForTextViews) {
-        canvas.translate(((float) rect.tl().x), ((float) rect.br().y));
-        containerForTextViews.draw(canvas);
-        containerForTextViews.removeAllViews();
-        canvas.setMatrix(null);
-    }
-
-    private void setTextSize(TextView tag) {
-        if(ratioWidth < 0.35){
-            tag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
-        }else if(ratioWidth < 0.5){
-            tag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
-        }else if(ratioWidth < 0.7){
-            tag.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
-        }
-    }
-
-    private void saveBitmap(Bitmap bitmap) {
-        FileOutputStream outputStream = null;
-        File image = null;
-        try {
-            image = createImageFile();
-            outputStream = new FileOutputStream(image);
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (outputStream != null) {
-                    outputStream.close();
-                    MediaStore.Images.Media.insertImage(getContentResolver(), currentPhotoPath, image.getName(), image.getName());
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
+    @Override
     protected void onActivityResult(int requestCode,
                                     int resultCode, Intent data) {
         if (resultCode == RESULT_OK) {
@@ -431,20 +285,22 @@ public class MainActivity extends AppCompatActivity {
 
                 case REQUEST_CODE_GALLERY:
                     detectionUsed = false;
+                    saveUsed = false;
                     if (!textViewList.isEmpty()) {
                         for (TextView textView : textViewList) {
                             textView.setVisibility(View.GONE);
                         }
                     }
-                    currentPhotoPath = getPhotoPath(data);
+                    currentPhotoPath = photoLab.getPhotoPath(data);
 
                     Bitmap tempGalleryBitmap = BitmapFactory.decodeFile(currentPhotoPath);
-                    Bitmap originalGalleryBitmap = rotateBitmap(tempGalleryBitmap, currentPhotoPath);
+                    Bitmap originalGalleryBitmap = photoLab.rotateBitmap(tempGalleryBitmap, currentPhotoPath);
                     imageView.setImageBitmap(originalGalleryBitmap);
                     break;
 
                 case REQUEST_CODE_CAMERA:
                     detectionUsed = false;
+                    saveUsed = false;
                     if (!textViewList.isEmpty()) {
                         for (TextView textView : textViewList) {
                             textView.setVisibility(View.GONE);
@@ -452,7 +308,8 @@ public class MainActivity extends AppCompatActivity {
                     }
                     Bitmap tempCameraBitmap = BitmapFactory.decodeFile(currentPhotoPath);
                     Bitmap scaledCameraBitmap = Bitmap.createScaledBitmap(tempCameraBitmap, 800, 600, true);
-                    Bitmap originalCameraBitmap = rotateBitmap(scaledCameraBitmap, currentPhotoPath);
+                    tempCameraBitmap.recycle();
+                    Bitmap originalCameraBitmap = photoLab.rotateBitmap(scaledCameraBitmap, currentPhotoPath);
                     imageView.setImageBitmap(originalCameraBitmap);
                     break;
             }
@@ -460,68 +317,17 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String getPhotoPath(Intent data) {
-        Uri photoUri = data.getData();
-        String[] currentPhotoPathColumn = {MediaStore.Images.Media.DATA};
-        Cursor cursor = getContentResolver().query(photoUri, currentPhotoPathColumn, null, null, null);
-        cursor.moveToFirst();
-        int columnIndex = cursor.getColumnIndex(currentPhotoPathColumn[0]);
-        String photoPath = cursor.getString(columnIndex);
-        cursor.close();
-        return photoPath;
-    }
-
-    public Bitmap rotateBitmap(Bitmap bitmap, String currentPhotoPath) {
-        int orientation = 0;
-        try {
-            ExifInterface imgParams = new
-                    ExifInterface(currentPhotoPath);
-            orientation =
-                    imgParams.getAttributeInt(
-                            ExifInterface.TAG_ORIENTATION,
-                            ExifInterface.ORIENTATION_UNDEFINED);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        Matrix matrix = new Matrix();
-        switch (orientation) {
-            case ExifInterface.ORIENTATION_NORMAL:
-                return bitmap;
-            case ExifInterface.ORIENTATION_FLIP_HORIZONTAL:
-                matrix.setScale(-1, 1);
-                break;
-            case ExifInterface.ORIENTATION_ROTATE_180:
-                matrix.setRotate(180);
-                break;
-            case ExifInterface.ORIENTATION_FLIP_VERTICAL:
-                matrix.setRotate(180);
-                matrix.postScale(-1, 1);
-                break;
-            case ExifInterface.ORIENTATION_TRANSPOSE:
-                matrix.setRotate(90);
-                matrix.postScale(-1, 1);
-                break;
-            case ExifInterface.ORIENTATION_ROTATE_90:
-                matrix.setRotate(90);
-                break;
-            case ExifInterface.ORIENTATION_TRANSVERSE:
-                matrix.setRotate(-90);
-                matrix.postScale(-1, 1);
-                break;
-            case ExifInterface.ORIENTATION_ROTATE_270:
-                matrix.setRotate(-90);
-                break;
-            default:
-                return bitmap;
-        }
-        try {
-            Bitmap bmRotated = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
-            bitmap.recycle();
-            return bmRotated;
-        } catch (OutOfMemoryError e) {
-            e.printStackTrace();
-            return null;
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (imageView.getDrawable() != null) {
+            outState.putString(CURRENT_PHOTO_PATH, currentPhotoPath);
+            if (saveUsed) {
+                outState.putBoolean(SAVE_USED, saveUsed);
+                outState.putBoolean(DETECTION_USED, detectionUsed);
+            }
         }
     }
 }
+
+

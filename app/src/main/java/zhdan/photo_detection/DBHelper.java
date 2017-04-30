@@ -1,8 +1,7 @@
 package zhdan.photo_detection;
 
+import android.content.ContentValues;
 import android.content.Context;
-import android.content.Intent;
-import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
@@ -16,9 +15,8 @@ class DBHelper extends SQLiteOpenHelper {
 
     // Labels Table Columns names
     static final String KEY_ID = "_id";
-    static final String KEY_NAME = "name";
+    private static final String KEY_NAME = "name";
     static final String KEY_PATH = "path";
-
 
     DBHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -28,7 +26,6 @@ class DBHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         db.execSQL("create table " + TABLE_NAME + "(" + KEY_ID
                 + " integer primary key," + KEY_NAME + " text," + KEY_PATH + " text" + ")");
-
     }
 
     @Override
@@ -37,4 +34,18 @@ class DBHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
+    void insertTagsIntoDB(List<String> tags, String currentPhotoPath) {
+        SQLiteDatabase database = getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        for (String tag : tags) {
+            contentValues.put(DBHelper.KEY_NAME, tag);
+            contentValues.put(DBHelper.KEY_PATH, currentPhotoPath);
+            database.insert(DBHelper.TABLE_NAME, null, contentValues);
+        }
+        database.close();
+    }
+
+    void removeFromDB(int id, SQLiteDatabase database) {
+        database.delete(DBHelper.TABLE_NAME, DBHelper.KEY_ID + "=" + id, null);
+    }
 }

@@ -2,4 +2,20 @@
     <string name="app_name">Photo_detection</string>
     <string name="delete">Delete</string>
     <string name="search">Search</string>
+    <string name="photo_send_extra_subject">My photo Main Activity</string>
+    <string name="photo_send_extra_text">Check out my photo</string>
+    <string name="photo_send_chooser_title">Share photo with&#8230;</string>
+    <string name="toast_on_detect_no_bitmap">First choose an image</string>
+    <string name="toast_on_detect_image_already_saved">Image have been used already for detection</string>
+    <string name="authority">com.example.android.fileProvider</string>
+    <string name="photo_picker_intent_type">image/*</string>
+    <string name="toast_no_photos_after_search">No photos found</string>
+    <string name="toast_error_to_share">First save image</string>
+    <string name="toast_on_save_no_data">Nothing to save</string>
+    <string name="toast_on_save_used_before">Image have been already saved</string>
+    <string name="share">Share</string>
+    <string name="save">Save</string>
+    <string name="ok">OK</string>
+    <string name="new_image">New image</string>
+    <string name="detect">Detect</string>
 </resources>

@@ -12,6 +12,8 @@
 
     <CheckBox
         android:id="@+id/itemCheckBox"
+        android:buttonTint="@color/colorCheckBox"
+        android:visibility="gone"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"

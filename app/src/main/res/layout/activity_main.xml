@@ -10,14 +10,14 @@
     tools:context="zhdan.photo_detection.MainActivity">
 
     <RelativeLayout
-        android:id="@+id/relative_layout2"
+        android:id="@+id/relative_layout_image"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_above="@+id/btnNewImage"
+        android:layout_above="@+id/linear_layout_buttons"
         android:gravity="center">
 
         <ImageView
-            android:id="@+id/image_view1"
+            android:id="@+id/image_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentStart="true"
@@ -25,23 +25,25 @@
             android:foregroundGravity="center" />
     </RelativeLayout>
 
-    <Button
-        android:id="@+id/btnNewImage"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_toStartOf="@+id/btnDetect"
-        android:onClick="btnClick"
-        android:text="New image" />
+        android:id="@+id/linear_layout_buttons"
+        android:gravity="center"
+        android:layout_alignParentBottom="true">
 
-    <Button
-        android:id="@+id/btnDetect"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentEnd="true"
-        android:layout_marginEnd="53dp"
-        android:onClick="btnClick"
-        android:text="Detect" />
+        <Button
+            android:id="@+id/btnNewImage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="btnClick"
+            android:text="@string/new_image" />
 
+        <Button
+            android:id="@+id/btnDetect"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="btnClick"
+            android:text="@string/detect" />
+    </LinearLayout>
 </RelativeLayout>
