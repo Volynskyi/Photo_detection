@@ -12,6 +12,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.PopupMenu;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -51,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
     public static final String FACE_TAG = "faceTag";
     public static final String INDEX_TAG = "indexTag";
     public static final String FILE_PATH = "filePath";
+    public static final String TAG = "FaceDetection";
 
     //Activity variables
     private Context context = this;
@@ -79,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
         dbHelper = new DBHelper(this);
         openCVHelper = new OpenCVHelper(getApplicationContext());
         photoLab = new PhotoLab(this);
-        if (savedInstanceState != null) {
+        if (savedInstanceState != null && savedInstanceState.containsKey(CURRENT_PHOTO_PATH)) {
             currentPhotoPath = savedInstanceState.getString(CURRENT_PHOTO_PATH);
             Bitmap savedBitmap = BitmapFactory.decodeFile(currentPhotoPath);
             Bitmap rotatedBitmap = photoLab.rotateBitmap(savedBitmap, currentPhotoPath);
@@ -318,16 +320,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
+    protected void onSaveInstanceState(Bundle savedInstanceState) {
         if (imageView.getDrawable() != null) {
-            outState.putString(CURRENT_PHOTO_PATH, currentPhotoPath);
+            savedInstanceState.putString(CURRENT_PHOTO_PATH, currentPhotoPath);
             if (saveUsed) {
-                outState.putBoolean(SAVE_USED, saveUsed);
-                outState.putBoolean(DETECTION_USED, detectionUsed);
+                savedInstanceState.putBoolean(SAVE_USED, saveUsed);
+                savedInstanceState.putBoolean(DETECTION_USED, detectionUsed);
             }
         }
+        super.onSaveInstanceState(savedInstanceState);
     }
 }
-
-
