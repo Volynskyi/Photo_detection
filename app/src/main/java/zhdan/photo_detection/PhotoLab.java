@@ -136,7 +136,8 @@ class PhotoLab {
         }
     }
 
-    Bitmap drawBitmap(Rect[] facesArray, ImageView imageView, List<TextView> textViewList, RelativeLayout imageAndTagsRelativeLayout) {
+    Bitmap drawBitmap(Rect[] facesArray, ImageView imageView, List<TextView> textViewList,
+                      RelativeLayout imageAndTagsRelativeLayout) {
         final Bitmap backgroundBitmap = ((BitmapDrawable) imageView.getDrawable()).getBitmap();
         Bitmap copyOfBackgroundBitmap = Bitmap.createBitmap(backgroundBitmap.getWidth(),
                 backgroundBitmap.getHeight(), Bitmap.Config.RGB_565);

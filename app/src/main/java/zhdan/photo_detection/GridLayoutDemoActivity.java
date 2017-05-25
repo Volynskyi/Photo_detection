@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SearchView;
 import android.text.TextUtils;
+import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.ActionMode;
 import android.view.Menu;
@@ -17,6 +18,7 @@ import android.widget.AdapterView;
 import android.widget.GridView;
 import android.widget.Toast;
 
+import java.io.File;
 import java.util.ArrayList;
 
 public class GridLayoutDemoActivity extends AppCompatActivity {
@@ -115,7 +117,9 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                     photoDataList.get(i).setVisibleCheckBox(true);
                 }
                 photoDataList.get(position).setSelected(true);
+                int index = gridView.getFirstVisiblePosition();
                 imageAdapter.notifyDataSetChanged();
+                gridView.setSelection(index);
                 gridView.setAdapter(imageAdapter);
                 return true;
             }
@@ -150,17 +154,49 @@ public class GridLayoutDemoActivity extends AppCompatActivity {
                     SparseIntArray selected = imageAdapter.getSelectedIds();
                     int key;
                     ArrayList<PhotoData> selectedItems = new ArrayList<>();
+                    String path;
+                    Cursor cursor = null;
+                    String selection;
+                    String[] selectionArgs;
+
                     for (int i = 0; i < selected.size(); i++) {
                         key = selected.keyAt(i);
+                        selection = "_id = ?";
+                        Log.d(MainActivity.TAG, "selected.get(key) = " + Integer.toString(selected.get(key)));
+                        selectionArgs = new String[]{Integer.toString(selected.get(key))};
+                        cursor = database.query(DBHelper.TABLE_NAME, null, selection, selectionArgs,
+                                null, null, null);
+                        cursor.moveToFirst();
+                        int pathIndex = cursor.getColumnIndex(DBHelper.KEY_PATH);
+                        path = cursor.getString(pathIndex);
+                        Log.d(MainActivity.TAG, "path = " + path);
+
                         dbHelper.removeFromDB(selected.get(key), database);
+
+                        selection = "name = ?";
+                        selectionArgs = new String[]{path};
+                        cursor = database.query(DBHelper.TABLE_NAME, null, selection, selectionArgs, null, null,
+                                null);
+                        if (cursor.moveToFirst()) {
+                            continue;
+                        } else {
+                            deleteFile(path);
+                        }
                         selectedItems.add(photoDataList.get(key));
                     }
+                    cursor.close();
                     photoDataList.removeAll(selectedItems);
                     mode.finish();
                     return true;
                 default:
                     return false;
             }
+        }
+
+        private void deleteFile(String path) {
+            File file = new File(path);
+            boolean deleted = file.delete();
+            Log.d(MainActivity.TAG, "file deleted " + deleted);
         }
 
         public void onDestroyActionMode(ActionMode mode) {

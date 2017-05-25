@@ -12,7 +12,6 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.PopupMenu;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -250,6 +249,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 dbHelper.insertTagsIntoDB(tagNames, currentPhotoPath);
                 saveUsed = true;
+                imageView.setImageBitmap(BitmapFactory.decodeFile(currentPhotoPath));
                 Intent i = new Intent(this, FullImageActivity.class);
                 i.putExtra(FILE_PATH, currentPhotoPath);
                 startActivity(i);
